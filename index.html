@@ -47,35 +47,7 @@
       signInBtn.classList.remove('hidden');
     }
 
-    // Google OAuth sign-in
-    signInBtn.addEventListener('click', async () => {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin + window.location.pathname,
-          queryParams: { access_type: 'offline', prompt: 'consent' },
-          scopes: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.send'
-        }
-      });
-      if (error) {
-        console.error('Error signing in:', error);
-        alert('❌ Google sign-in failed. See console for details.');
-      }
-    });
-
-    // Retrieve Supabase session and update UI
-    async function handleSession(session) {
-      if (!session?.user) {
-        resetUI();
-        return;
-      }
-
-      const email = session.user.email;
-      // Supabase v2: provider_token is the Google access token
-      const accessToken = session.provider_token || session?.provider_access_token || session?.access_token;
-
-      showUser(email);
-
+    function setUpSendEmail(email, accessToken) {
       sendEmailBtn.onclick = async () => {
         // Compose RFC 5322 email message
         const rawMessage =
@@ -117,14 +89,54 @@
       };
     }
 
-    // On page load, check for session
-    const { data: { session } } = await supabase.auth.getSession();
-    await handleSession(session);
+    // Retrieve Supabase session and update UI
+    async function handleSession(session) {
+      if (!session?.user) {
+        resetUI();
+        return;
+      }
+
+      const email = session.user.email;
+      // Supabase v2: provider_token is the Google access token
+      const accessToken = session.provider_token || session?.provider_access_token || session?.access_token;
+
+      showUser(email);
+      setUpSendEmail(email, accessToken);
+    }
+
+    // On page load, always try to get and use session (restores session after OAuth redirect or reload)
+    async function initialize() {
+      // Always try to restore session from local storage/cookie
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('Error getting Supabase session:', error);
+      }
+      await handleSession(session);
+    }
 
     // Listen for login/logout events
     supabase.auth.onAuthStateChange(async (_event, session) => {
       await handleSession(session);
     });
+
+    // Attach Google sign-in
+    signInBtn.addEventListener('click', async () => {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + window.location.pathname,
+          queryParams: { access_type: 'offline', prompt: 'consent' },
+          scopes: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.send'
+        }
+      });
+      if (error) {
+        console.error('Error signing in:', error);
+        alert('❌ Google sign-in failed. See console for details.');
+      }
+    });
+
+    // Run initialization on every page load
+    initialize();
   </script>
 </body>
 </html>
