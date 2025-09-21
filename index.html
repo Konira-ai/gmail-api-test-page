@@ -3,152 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Supabase Google OAuth & Gmail API</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>Gmail API Test Page</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
-        }
-    </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4">
-    <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-sm text-center">
-        <h1 class="text-3xl font-bold mb-6 text-gray-800">Gmail API Test</h1>
-        
-        <!-- Login Container -->
-        <div id="login-container">
-            <p class="text-gray-600 mb-6">Sign in to grant access to your Gmail account.</p>
-            <button id="loginBtn" class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition duration-300 ease-in-out transform hover:scale-105 shadow-lg">
-                Sign in with Google
-            </button>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <main class="bg-white p-8 rounded-lg shadow-lg max-w-sm w-full text-center">
+        <h1 class="text-3xl font-bold mb-4 text-gray-800">Gmail API Test Page</h1>
+        <p class="text-gray-600 mb-6">
+            Sign in with your Google account to authorize the application.
+        </p>
+
+        <!-- The main button to trigger the sign-in process -->
+        <button id="google-signin-btn" class="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-md hover:bg-blue-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+            Sign in with Google
+        </button>
+
+        <!-- This section is hidden by default and will be shown if the popup is blocked -->
+        <div id="fallback-message" class="mt-4 text-gray-500 hidden">
+            <p>
+                Looks like your browser blocked the sign-in popup. Please click the button below to continue the login process.
+            </p>
+            <a id="fallback-link" class="mt-2 inline-block text-blue-600 hover:text-blue-800 transition-colors duration-200">
+                Continue to Login Page
+            </a>
         </div>
+    </main>
 
-        <!-- App Container (initially hidden) -->
-        <div id="app-container" class="hidden">
-            <p class="text-green-600 text-xl font-semibold mb-4">Login Successful!</p>
-            <p id="user-email" class="text-gray-800 font-medium mb-4"></p>
-            <p class="text-gray-600 mb-6">You can now send a test email.</p>
-            <button id="sendEmailBtn" class="w-full py-3 px-4 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-xl transition duration-300 ease-in-out transform hover:scale-105 shadow-lg">
-                Send Test Email
-            </button>
-            <div id="status-message" class="mt-4 p-3 rounded-xl text-sm font-medium"></div>
-        </div>
-    </div>
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-    <script>
-        // Supabase Client Initialization
-        const supabaseUrl = 'https://mzerlmfatyyummpjikxs.supabase.co';
-        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16ZXJsbWZhdHl5dW1tcGppa3hzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzNTY5MzMsImV4cCI6MjA3MzkzMjkzM30.DPa4fMqeSqis7OQE2bIhKz3vQiJ1fXfZXXD8MggccIg';
+        // Supabase credentials
+        const SUPABASE_URL = 'https://mzerlmfatyyummpjikxs.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16ZXJsbWZhdHl5dW1tcGppa3hzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgzNTY5MzMsImV4cCI6MjA3MzkzMjkzM30.DPa4fMqeSqis7OQE2bIhKz3vQiJ1fXfZXXD8MggccIg';
 
-        const supabase = supabaseUrl && supabaseAnonKey ?
-            supabase.createClient(supabaseUrl, supabaseAnonKey) :
-            null;
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // UI elements
-        const loginContainer = document.getElementById('login-container');
-        const appContainer = document.getElementById('app-container');
-        const userEmailElem = document.getElementById('user-email');
-        const statusMessageElem = document.getElementById('status-message');
-        const loginBtn = document.getElementById('loginBtn');
-        const sendEmailBtn = document.getElementById('sendEmailBtn');
-
-        function showStatus(message, isError = false) {
-            statusMessageElem.textContent = message;
-            statusMessageElem.className = `mt-4 p-3 rounded-xl text-sm font-medium ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
-            statusMessageElem.classList.remove('hidden');
-        }
-
-        async function signInWithGoogle() {
-            if (!supabase) {
-                showStatus('Supabase client not configured. Please add your keys.', true);
-                return;
+        // Listen for auth state changes
+        supabase.auth.onAuthStateChange((event, session) => {
+            console.log("Auth event:", event);
+            console.log("Session:", session);
+            if (session) {
+                console.log("User is logged in:", session.user.email);
             }
+        });
 
-            const { error } = await supabase.auth.signInWithOAuth({
+        // Sign-in function with popup fallback
+        const signInWithGoogle = async () => {
+            const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: window.location.origin + window.location.pathname,
+                    redirectTo: 'https://konira-ai.github.io/gmail-api-test-page/',
                     queryParams: { access_type: 'offline', prompt: 'consent' },
-                    scopes: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.metadata'
+                    scopes: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.send'
                 }
             });
 
-            if (error) {
-                showStatus('Login error: ' + error.message, true);
+            if (!data?.url && error) {
+                console.error("Popup blocked or login failed:", error);
+
+                // Show fallback link
+                document.getElementById('fallback-message').classList.remove('hidden');
+                const fallbackLink = document.getElementById('fallback-link');
+                fallbackLink.href = 'https://konira-ai.github.io/gmail-api-test-page/';
+                fallbackLink.onclick = () => {
+                    window.open('https://konira-ai.github.io/gmail-api-test-page/', '_self');
+                };
             }
-        }
+        };
 
-        async function sendEmail(accessToken, to, subject, body) {
-            const raw = btoa(`To: ${to}\r\nSubject: ${subject}\r\n\r\n${body}`)
-                .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-            
-            const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ raw })
-            });
-
-            if (!res.ok) {
-                throw new Error(`Gmail API error: ${res.status} - ${res.statusText}`);
-            }
-
-            return res.json();
-        }
-
-        async function sendTestEmail() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                showStatus('You must be logged in to send an email.', true);
-                return;
-            }
-
-            const accessToken = session.provider_token;
-            const toEmail = session.user.email;
-            const subject = "Test Email from Gemini";
-            const body = `This is a test email sent from the Gemini-powered web app using the Gmail API.`;
-
-            if (!accessToken) {
-                showStatus('Access token not found in session.', true);
-                return;
-            }
-
-            showStatus('Sending test email...');
-            try {
-                await sendEmail(accessToken, toEmail, subject, body);
-                showStatus('Email sent successfully!');
-            } catch (error) {
-                console.error(error);
-                showStatus(`Failed to send email: ${error.message}`, true);
-            }
-        }
-
-        loginBtn.addEventListener('click', signInWithGoogle);
-        sendEmailBtn.addEventListener('click', sendTestEmail);
-
-        async function checkSession() {
-            if (!supabase) {
-                loginContainer.classList.remove('hidden');
-                appContainer.classList.add('hidden');
-                showStatus('Supabase client not configured. Please add your keys.', true);
-                return;
-            }
-
-            supabase.auth.onAuthStateChange((event, session) => {
-                if (session) {
-                    userEmailElem.textContent = `User: ${session.user.email}`;
-                    loginContainer.classList.add('hidden');
-                    appContainer.classList.remove('hidden');
-                    statusMessageElem.classList.add('hidden');
-                } else {
-                    loginContainer.classList.remove('hidden');
-                    appContainer.classList.add('hidden');
-                }
-            });
-        }
-
-        checkSession();
+        // Attach listener
+        document.getElementById('google-signin-btn').addEventListener('click', signInWithGoogle);
     </script>
 </body>
 </html>
